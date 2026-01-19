@@ -3,6 +3,7 @@ import { ApiResponse, Persona, User } from '@/types';
 
 // Base URL (Ensure this matches your backend port)
 const API_BASE_URL = 'http://localhost:5001/api';
+// const API_BASE_URL = '/api/backend/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
