@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from "react-hot-toast"; // ✅ Import Toast
+import { toast } from "react-hot-toast";
 import { User } from '@/types'; 
 
 interface AuthContextType {
   user: User | null;
+  token: string | null; // 👈 1. ADDED THIS: Now TypeScript knows token exists
   loading: boolean;
   login: (token: string, userData: User) => void;
   logout: () => void;
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); // 👈 2. ADDED STATE: To hold the token
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -26,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (storedToken && storedUser) {
       try {
+        setToken(storedToken); // 👈 Restore token to state
         setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error("Failed to parse stored user", error);
@@ -37,9 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // 2. LOGIN (Save everything)
-  const login = (token: string, userData: User) => {
-    localStorage.setItem('token', token);
+  const login = (newToken: string, userData: User) => {
+    localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData)); 
+    
+    setToken(newToken); // 👈 Update state so app knows we are logged in
     setUser(userData);
   };
 
@@ -47,13 +52,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    
+    setToken(null); // 👈 Clear state
     setUser(null);
     router.push('/');
-    toast.success("Logged out successfully"); // ✅ Toast
+    toast.success("Logged out successfully");
   };
 
+  // 4. EXPOSE TOKEN IN VALUE
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

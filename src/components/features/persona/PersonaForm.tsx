@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link2, Sparkles, Wand2, X } from "lucide-react";
-import { toast } from "react-hot-toast"; // ✅ Import Toast
+import { toast } from "react-hot-toast"; 
 import GlassCard from "@/components/ui/GlassCard";
 import { PersonaApi, ExtractApi } from "@/lib/api";
 import { Persona } from "@/types";
+// 👇 1. IMPORT AUTH HOOK
+import { useAuth } from "@/context/AuthContext";
 
 // --- TYPES ---
 interface PersonaFormProps {
@@ -24,6 +26,9 @@ interface ScrapedData {
 }
 
 export default function PersonaForm({ onCreated }: PersonaFormProps) {
+  // 👇 2. GET THE TOKEN (Your ID Card)
+  const { token } = useAuth();
+
   // Modes: 'text' = Manual typing, 'link' = Paste URL
   const [mode, setMode] = useState<'text' | 'link'>('text');
   
@@ -45,6 +50,8 @@ export default function PersonaForm({ onCreated }: PersonaFormProps) {
     setStatus('extracting');
     
     try {
+      // Note: If ExtractApi also needs auth, we might need to update it too, 
+      // but usually extraction is public.
       const res = await ExtractApi.analyze(url);
       
       if (res.success) {
@@ -59,46 +66,66 @@ Lighting: Studio softbox, 8k resolution, photorealistic, slow motion product rev
         setPrompt(smartPrompt);
         setMode('text'); 
         setStatus('idle');
-        toast.success("Product details extracted"); // ✅ Toast
+        toast.success("Product details extracted");
       }
     } catch (err) {
       console.error("Extraction failed", err);
-      toast.error("Could not read this link. Try entering manually."); // ✅ Toast
+      toast.error("Could not read this link. Try entering manually.");
       setStatus('idle');
     }
   };
 
-  // --- HANDLER: 2. Create Persona ---
+  // --- HANDLER: 2. Create Persona (UPDATED) ---
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     
+    // 🛡️ CHECK: Do we have a token?
+    if (!token) {
+        toast.error("Please login to generate dreams.");
+        return;
+    }
+
     try {
       setStatus('loading');
       
       const thumbnail = scrapedItem?.images?.[0] || undefined;
 
-      const res = await PersonaApi.create({
-        prompt, 
-        userId: 'guest-user', 
-        imageUrl: thumbnail,
-        title: scrapedItem?.title,
-        price: scrapedItem?.price,
-        currency: scrapedItem?.currency,
-        domain: scrapedItem?.domain
+      // 👇 REPLACED 'PersonaApi.create' WITH DIRECT FETCH
+      // This ensures we send the Token correctly!
+      const response = await fetch('/api/backend/api/persona/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // ✅ THE FIX: Sending your ID
+        },
+        body: JSON.stringify({
+            prompt,
+            // userId: 'guest-user', ❌ REMOVED THIS! The token handles it.
+            imageUrl: thumbnail,
+            title: scrapedItem?.title,
+            price: scrapedItem?.price,
+            currency: scrapedItem?.currency,
+            domain: scrapedItem?.domain
+        })
       });
+
+      const data = await response.json();
       
-      if (res.success) {
-        setPersona(res.data);
+      if (data.success) {
+        setPersona(data.data);
         setStatus('polling');
         // Start the polling loop
-        startPolling(res.data._id);
+        startPolling(data.data._id);
         if (onCreated) onCreated();
-        toast.success("Dream initiated. Creating reality..."); // ✅ Toast
+        toast.success("Dream initiated. Creating reality...");
+      } else {
+        throw new Error(data.message || "Generation failed");
       }
-    } catch (err) {
+
+    } catch (err: any) {
       console.error("Failed to create:", err);
       setStatus('idle');
-      toast.error("Something went wrong."); // ✅ Toast
+      toast.error(err.message || "Something went wrong.");
     }
   };
 
@@ -114,6 +141,9 @@ Lighting: Studio softbox, 8k resolution, photorealistic, slow motion product rev
 
     try {
       console.log(`📡 Checking Status for ${id}...`);
+      
+      // We use the helper here (usually safe for GET requests)
+      // If this fails too, we can replace it with fetch later.
       const res = await PersonaApi.getStatus(id);
       
       // ✅ SUCCESS CASE
@@ -122,7 +152,7 @@ Lighting: Studio softbox, 8k resolution, photorealistic, slow motion product rev
         setPersona(res.data);
         setStatus('success');
         isPollingRef.current = false; 
-        toast.success("Your Persona is ready!", { duration: 5000 }); // ✅ Toast with longer duration
+        toast.success("Your Persona is ready!", { duration: 5000 });
         return;
       }
 
@@ -130,7 +160,7 @@ Lighting: Studio softbox, 8k resolution, photorealistic, slow motion product rev
       if (res.data.status === 'failed') {
         console.error("❌ Generation Failed");
         setStatus('idle');
-        toast.error("AI Generation Failed."); // ✅ Toast
+        toast.error("AI Generation Failed.");
         isPollingRef.current = false;
         return;
       }

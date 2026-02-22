@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Globe } from 'lucide-react';
 import Link from 'next/link';
+
+// ✅ Imports
 import GlassCard from '@/components/ui/GlassCard';
-import LikeButton from '@/components/ui/LikeButton'; // 👈 IMPORT THIS
+import LikeButton from '@/components/ui/LikeButton';
+import TrendingRow from '@/components/features/explore/TrendingRow';
+import Navbar from '@/components/layout/Navbar'; // 👈 IMPORT THE GLOBAL NAVBAR
 
 export default function ExplorePage() {
   const [dreams, setDreams] = useState<any[]>([]);
@@ -23,18 +27,10 @@ export default function ExplorePage() {
   return (
     <div className="min-h-screen bg-black text-white p-6 pt-24">
       
-      {/* NAVBAR */}
-      <nav className="fixed top-0 left-0 w-full p-6 z-50 flex justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent backdrop-blur-sm">
-        <Link href="/" className="text-xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-            ECHHA
-        </Link>
-        <div className="flex gap-6 text-sm uppercase tracking-widest text-white/60">
-            <Link href="/explore" className="text-white hover:text-purple-400 transition-colors">Explore</Link>
-            <Link href="/dashboard" className="hover:text-purple-400 transition-colors">My Vault</Link>
-        </div>
-      </nav>
+      {/* ✅ 1. GLOBAL NAVBAR (Includes Bell & Auth) */}
+      <Navbar />
 
-      {/* HEADER */}
+      {/* 🌍 2. HEADER */}
       <div className="max-w-4xl mx-auto text-center mb-16 mt-10">
         <h1 className="text-5xl font-thin tracking-wider mb-4 flex items-center justify-center gap-4">
           <Globe className="text-blue-500 animate-pulse" /> World Feed
@@ -44,13 +40,19 @@ export default function ExplorePage() {
         </p>
       </div>
 
-      {/* GRID */}
+      {/* 🏆 3. TRENDING ROW */}
+      <div className="max-w-7xl mx-auto">
+        <TrendingRow />
+      </div>
+
+      {/* 🔮 4. MAIN GRID */}
       {loading ? (
         <div className="text-center text-white/30 animate-pulse mt-20">Connecting to the collective unconscious...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto pb-20">
             {dreams.map((dream: any, index: number) => {
                 
+                // Safety Checks
                 const creatorName = dream.userId?.name || "Anonymous";
                 const creatorVibe = dream.userId?.dnaCard?.palette?.[0] || "#7c3aed";
                 const creatorLink = dream.userId?.name ? `/u/${dream.userId.name}` : '#';
@@ -66,6 +68,7 @@ export default function ExplorePage() {
                                 <img src={dream.imageUrl} className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all" />
                             )}
                             
+                            {/* Creator Pill */}
                             <Link href={creatorLink} className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full hover:bg-black/90 transition-colors border border-white/5">
                                 <div className="w-3 h-3 rounded-full" style={{ background: creatorVibe }}></div>
                                 <span className="text-xs font-bold text-white/90">{creatorName}</span>
@@ -78,10 +81,9 @@ export default function ExplorePage() {
                             <p className="text-xs text-white/40 mt-1 line-clamp-2 italic">"{dream.prompt}"</p>
                         </div>
 
-                        {/* 👇 ACTION BAR (WITH HEART) */}
+                        {/* ACTION BAR (Like & View Profile) */}
                         <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
                             
-                            {/* ❤️ THE LIKE BUTTON */}
                             <LikeButton 
                                 dreamId={dream._id} 
                                 initialLikes={dream.likeCount || 0} 
